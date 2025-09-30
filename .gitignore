@@ -27,3 +27,14 @@ dist-ssr
 /backend/venv/
 /medical-summarizer/.venv
 /medical-summarizer/venv
+
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.dll
+*.lib
+*.so
+*.dylib
