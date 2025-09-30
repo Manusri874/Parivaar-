@@ -1,0 +1,11 @@
+mysql-connector-python
+flask
+flask-cors
+bcrypt
+PyJWT
+torch
+transformers
+PyMuPDF
+sentencepiece
+requests
+python-dotenv

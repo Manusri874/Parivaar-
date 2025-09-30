@@ -1,12 +1,18 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { Upload } from 'lucide-react';
 
 interface UploadDocumentDialogProps {
@@ -18,7 +24,7 @@ const UploadDocumentDialog = ({ memberId, onDocumentUploaded }: UploadDocumentDi
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  
+
   const [formData, setFormData] = useState({
     title: '',
     document_type: '',
@@ -31,74 +37,67 @@ const UploadDocumentDialog = ({ memberId, onDocumentUploaded }: UploadDocumentDi
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  // ---------------- File Change ---------------- //
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFormData(prev => ({ ...prev, file: e.target.files![0] }));
+      const file = e.target.files[0];
+      if (file.type !== 'application/pdf') {
+        toast({
+          title: "Error",
+          description: "Only PDF files are allowed",
+          variant: "destructive"
+        });
+        e.target.value = '';
+        return;
+      }
+      setFormData(prev => ({ ...prev, file }));
     }
   };
 
+  // ---------------- Submit ---------------- //
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.file) {
+
+    if (!formData.file || !formData.document_type || !formData.title || !formData.document_date) {
       toast({
         title: "Error",
-        description: "Please select a file to upload",
-        variant: "destructive",
+        description: "Please fill all required fields and select a PDF file",
+        variant: "destructive"
       });
       return;
     }
 
     setLoading(true);
     try {
-      // Upload file to storage
-      const fileExt = formData.file.name.split('.').pop();
-      const fileName = `${memberId}/${Date.now()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('medical-documents')
-        .upload(fileName, formData.file);
+      const data = new FormData();
+      data.append('memberId', memberId);
+      data.append('title', formData.title);
+      data.append('document_type', formData.document_type);
+      data.append('document_date', formData.document_date);
+      data.append('notes', formData.notes);
+      data.append('file', formData.file);
 
-      if (uploadError) throw uploadError;
+      const res = await fetch('http://localhost:8000/api/documents/upload', {
+        method: 'POST',
+        body: data
+      });
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('medical-documents')
-        .getPublicUrl(fileName);
-
-      // Save document record
-      const { error } = await supabase
-        .from('medical_documents')
-        .insert({
-          family_member_id: memberId,
-          title: formData.title,
-          document_type: formData.document_type,
-          document_date: formData.document_date,
-          notes: formData.notes,
-          file_url: urlData.publicUrl,
-          file_name: formData.file.name
-        });
-
-      if (error) throw error;
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to upload document');
 
       toast({
-        title: "Success!",
-        description: "Document uploaded successfully!",
+        title: 'Success!',
+        description: 'Document uploaded successfully!'
       });
 
-      setFormData({
-        title: '',
-        document_type: '',
-        document_date: '',
-        notes: '',
-        file: null
-      });
+      setFormData({ title: '', document_type: '', document_date: '', notes: '', file: null });
       setOpen(false);
       onDocumentUploaded();
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: 'Error',
         description: error.message,
-        variant: "destructive",
+        variant: 'destructive'
       });
     } finally {
       setLoading(false);
@@ -117,10 +116,11 @@ const UploadDocumentDialog = ({ memberId, onDocumentUploaded }: UploadDocumentDi
         <DialogHeader>
           <DialogTitle>Upload Medical Document</DialogTitle>
           <DialogDescription>
-            Upload prescriptions, lab reports, bills, and other medical documents.
+            Upload prescriptions, lab reports, bills, and other medical documents (PDF only).
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Document Title */}
           <div className="space-y-2">
             <Label htmlFor="title">Document Title *</Label>
             <Input
@@ -131,26 +131,28 @@ const UploadDocumentDialog = ({ memberId, onDocumentUploaded }: UploadDocumentDi
               required
             />
           </div>
-          
+
+          {/* Document Type */}
           <div className="space-y-2">
             <Label htmlFor="document_type">Document Type *</Label>
-            <Select value={formData.document_type} onValueChange={(value) => handleInputChange('document_type', value)} required>
+            <Select
+              value={formData.document_type}
+              onValueChange={(value) => handleInputChange('document_type', value)}
+              required
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select document type" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Prescription">Prescription</SelectItem>
-                <SelectItem value="Lab Report">Lab Report</SelectItem>
+                <SelectItem value="Lab">Lab Report</SelectItem>
                 <SelectItem value="Bill">Medical Bill</SelectItem>
-                <SelectItem value="X-Ray">X-Ray</SelectItem>
-                <SelectItem value="MRI">MRI</SelectItem>
-                <SelectItem value="CT Scan">CT Scan</SelectItem>
-                <SelectItem value="Vaccination">Vaccination Record</SelectItem>
-                <SelectItem value="Other">Other</SelectItem>
+                <SelectItem value="Other">Other (X-Ray, MRI, CT Scan)</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          
+
+          {/* Document Date */}
           <div className="space-y-2">
             <Label htmlFor="document_date">Document Date *</Label>
             <Input
@@ -161,31 +163,30 @@ const UploadDocumentDialog = ({ memberId, onDocumentUploaded }: UploadDocumentDi
               required
             />
           </div>
-          
+
+          {/* File Upload */}
           <div className="space-y-2">
-            <Label htmlFor="file">File Upload *</Label>
+            <Label htmlFor="file">File Upload (PDF only) *</Label>
             <Input
               id="file"
               type="file"
-              accept=".pdf,.jpg,.jpeg,.png"
+              accept=".pdf"
               onChange={handleFileChange}
               required
             />
-            <p className="text-xs text-muted-foreground">
-              Supported formats: PDF, JPG, PNG (Max 10MB)
-            </p>
           </div>
-          
+
+          {/* Notes */}
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
             <Textarea
               id="notes"
               value={formData.notes}
               onChange={(e) => handleInputChange('notes', e.target.value)}
-              placeholder="Additional notes about this document..."
             />
           </div>
-          
+
+          {/* Buttons */}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel

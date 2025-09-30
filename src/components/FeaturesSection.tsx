@@ -53,7 +53,7 @@ const features = [
 
 const FeaturesSection = () => {
   return (
-    <section className="py-20 bg-background">
+    <section id="features" className="py-20 bg-background">
       <div className="container mx-auto px-4">
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
@@ -104,18 +104,13 @@ const FeaturesSection = () => {
               </p>
             </div>
             
-            <div className="bg-gradient-card rounded-2xl p-6 shadow-card">
+                        <div className="bg-gradient-card rounded-2xl p-6 shadow-card">
               <img 
                 src={medicalDocsImage} 
                 alt="Medical Document Organization" 
                 className="w-full h-64 object-cover rounded-xl"
               />
             </div>
-
-            <Button variant="default" size="lg" className="group">
-              Learn More
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Button>
           </div>
 
           {/* Right - Emergency Cards */}
@@ -130,18 +125,13 @@ const FeaturesSection = () => {
               </p>
             </div>
             
-            <div className="bg-gradient-card rounded-2xl p-6 shadow-card">
+                        <div className="bg-gradient-card rounded-2xl p-6 shadow-card">
               <img 
                 src={emergencyCardImage} 
                 alt="Emergency Health Card with QR Code" 
                 className="w-full h-64 object-cover rounded-xl"
               />
             </div>
-
-            <Button variant="cta" size="lg" className="group">
-              Get Started
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Button>
           </div>
         </div>
       </div>

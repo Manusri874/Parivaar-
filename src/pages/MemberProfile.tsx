@@ -3,20 +3,23 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, FileText, Clock, Bell, Shield, Users2, Calendar } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { Bell, Clock, FileText } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import Navbar from '@/components/Navbar';
-import UploadDocumentDialog from '@/components/documents/UploadDocumentDialog';
-import AddTimelineDialog from '@/components/timeline/AddTimelineDialog';
+import DashboardHeader from '@/components/DashboardHeader';
+import FamilyMemberPhoto from '@/components/family/FamilyMemberPhoto';
+import RemindersList from '@/components/reminders/RemindersList';
+import TimelineList from '@/components/timeline/TimelineList';
+import DocumentsList from '@/components/documents/DocumentsList';
 import AddReminderDialog from '@/components/reminders/AddReminderDialog';
+import AddTimelineDialog from '@/components/timeline/AddTimelineDialog';
+import UploadDocumentDialog from '@/components/documents/UploadDocumentDialog';
 import EmergencyCardGenerator from '@/components/emergency/EmergencyCardGenerator';
 import AddDoctorDialog from '@/components/doctors/AddDoctorDialog';
+import DoctorsList from '@/components/doctors/DoctorsList';
 
 interface FamilyMember {
-  id: string;
+  id: number;
   name: string;
   relation: string;
   age?: number;
@@ -27,6 +30,7 @@ interface FamilyMember {
   allergies?: string;
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
+  photo_url?: string;
 }
 
 const MemberProfile = () => {
@@ -37,6 +41,7 @@ const MemberProfile = () => {
   const [member, setMember] = useState<FamilyMember | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     fetchMember();
@@ -46,26 +51,29 @@ const MemberProfile = () => {
     if (!user || !memberId) return;
 
     try {
-      const { data, error } = await supabase
-        .from('family_members')
-        .select('*')
-        .eq('id', memberId)
-        .eq('user_id', user.id)
-        .single();
-
-      if (error) throw error;
+      setLoading(true);
+      const res = await fetch(
+        `http://127.0.0.1:8000/api/family-members/${memberId}?user_id=${user.id}`
+      );
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to load member profile');
+      }
+      const data: FamilyMember = await res.json();
       setMember(data);
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: "Failed to load member profile",
-        variant: "destructive",
+        title: 'Error',
+        description: error.message || 'Failed to load member profile',
+        variant: 'destructive',
       });
-      navigate('/dashboard');
+      setMember(null);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleRefresh = () => setRefreshTrigger(prev => prev + 1);
 
   if (loading) {
     return (
@@ -80,9 +88,7 @@ const MemberProfile = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">Member not found</h2>
-          <Button onClick={() => navigate('/dashboard')}>
-            Return to Dashboard
-          </Button>
+          <Button onClick={() => navigate('/dashboard')}>Return to Dashboard</Button>
         </div>
       </div>
     );
@@ -90,260 +96,128 @@ const MemberProfile = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted">
-      <Navbar />
-      
-      <div className="container mx-auto px-4 py-8 mt-16">
-        {/* Header */}
-        <div className="mb-8">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate('/dashboard')}
-            className="mb-4"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
-          </Button>
-          
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
-              <Users2 className="w-8 h-8 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold">{member.name}</h1>
-              <p className="text-muted-foreground">{member.relation}</p>
-            </div>
-          </div>
+      {/* Header with Summarizer Button */}
+      <div className="flex items-center justify-between px-6 py-4 bg-card shadow">
+        <div>
+          <h1 className="text-2xl font-bold">{member.name}</h1>
+          <p className="text-sm text-muted-foreground capitalize">{member.relation}</p>
+        </div>
+        <Button 
+          size="sm" 
+          variant="outline" 
+          onClick={() => navigate(`/medical-summarizer/${member.id}`)}
+        >
+          Summarize Medical Report
+        </Button>
+      </div>
 
-          {/* Quick Info */}
+      <div className="container mx-auto px-4 py-8">
+        {/* Photo & Quick Info */}
+        <div className="flex items-center gap-6 mb-8">
+          <FamilyMemberPhoto photoUrl={member.photo_url} name={member.name} relation={member.relation} size="xl" />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {member.age && (
-              <div className="bg-card rounded-lg p-3">
-                <p className="text-sm text-muted-foreground">Age</p>
-                <p className="font-semibold">{member.age} years</p>
-              </div>
-            )}
-            {member.gender && (
-              <div className="bg-card rounded-lg p-3">
-                <p className="text-sm text-muted-foreground">Gender</p>
-                <p className="font-semibold">{member.gender}</p>
-              </div>
-            )}
-            {member.blood_group && (
-              <div className="bg-card rounded-lg p-3">
-                <p className="text-sm text-muted-foreground">Blood Group</p>
-                <p className="font-semibold">{member.blood_group}</p>
-              </div>
-            )}
-            {member.phone && (
-              <div className="bg-card rounded-lg p-3">
-                <p className="text-sm text-muted-foreground">Phone</p>
-                <p className="font-semibold">{member.phone}</p>
-              </div>
-            )}
+            {member.age && <InfoCard label="Age" value={`${member.age} years`} />}
+            {member.gender && <InfoCard label="Gender" value={member.gender} />}
+            {member.blood_group && <InfoCard label="Blood Group" value={member.blood_group} />}
+            {member.phone && <InfoCard label="Phone" value={member.phone} />}
           </div>
         </div>
 
-        {/* Main Content Tabs */}
+        {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="documents">Documents</TabsTrigger>
-            <TabsTrigger value="timeline">Timeline</TabsTrigger>
             <TabsTrigger value="reminders">Reminders</TabsTrigger>
-            <TabsTrigger value="emergency">Emergency</TabsTrigger>
-            <TabsTrigger value="doctors">Doctors</TabsTrigger>
+            <TabsTrigger value="timeline">Timeline</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
+            <TabsTrigger value="emergency">Health Card</TabsTrigger>
           </TabsList>
 
-          {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveTab('documents')}>
+            <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+              <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-primary" />
-                    Medical Documents
+                    <Bell className="w-5 h-5" /> Active Reminders
                   </CardTitle>
-                  <CardDescription>
-                    Upload and manage medical reports, prescriptions, and bills
-                  </CardDescription>
+                  <CardDescription>Current medications and appointments</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button variant="outline" className="w-full">
-                    Manage Documents
-                  </Button>
+                  <RemindersList memberId={member.id} refresh={refreshTrigger} showLimited />
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveTab('timeline')}>
+              <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-secondary" />
-                    Medical Timeline
+                    <Clock className="w-5 h-5" /> Recent Timeline
                   </CardTitle>
-                  <CardDescription>
-                    Track medical history, treatments, and recovery progress
-                  </CardDescription>
+                  <CardDescription>Latest medical history entries</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button variant="outline" className="w-full">
-                    View Timeline
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveTab('reminders')}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Bell className="w-5 h-5 text-accent" />
-                    Smart Reminders
-                  </CardTitle>
-                  <CardDescription>
-                    Set reminders for medicines, appointments, and checkups
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button variant="outline" className="w-full">
-                    Manage Reminders
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveTab('emergency')}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-destructive" />
-                    Emergency Card
-                  </CardTitle>
-                  <CardDescription>
-                    Generate emergency health cards with QR codes
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button variant="outline" className="w-full">
-                    Generate Card
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveTab('doctors')}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users2 className="w-5 h-5 text-primary" />
-                    Doctor Directory
-                  </CardTitle>
-                  <CardDescription>
-                    Manage doctor contacts and hospital information
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button variant="outline" className="w-full">
-                    View Doctors
-                  </Button>
+                  <TimelineList memberId={member.id} refresh={refreshTrigger} showLimited />
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
 
-          {/* Documents Tab */}
-          <TabsContent value="documents" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Medical Documents</h2>
-              <UploadDocumentDialog memberId={member.id} onDocumentUploaded={() => {}} />
-            </div>
-            
+          <TabsContent value="reminders">
             <Card>
-              <CardHeader>
-                <CardTitle>Document Library</CardTitle>
-                <CardDescription>
-                  All medical documents for {member.name}
-                </CardDescription>
+              <CardHeader className="flex justify-between items-center">
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="w-5 h-5" /> Reminders & Medications
+                </CardTitle>
+                <AddReminderDialog memberId={member.id} onReminderAdded={handleRefresh} />
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  No documents uploaded yet. Click "Upload Document" to get started.
-                </div>
+                <RemindersList memberId={member.id} refresh={refreshTrigger} />
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Timeline Tab */}
-          <TabsContent value="timeline" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Medical Timeline</h2>
-              <AddTimelineDialog memberId={member.id} onTimelineAdded={() => {}} />
-            </div>
-            
+          <TabsContent value="timeline">
             <Card>
-              <CardHeader>
-                <CardTitle>Health History</CardTitle>
-                <CardDescription>
-                  Medical timeline for {member.name}
-                </CardDescription>
+              <CardHeader className="flex justify-between items-center">
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="w-5 h-5" /> Medical Timeline
+                </CardTitle>
+                <AddTimelineDialog memberId={member.id} onTimelineAdded={handleRefresh} />
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  No timeline entries yet. Click "Add Entry" to start tracking medical history.
-                </div>
+                <TimelineList memberId={member.id} refresh={refreshTrigger} />
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Reminders Tab */}
-          <TabsContent value="reminders" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Smart Reminders</h2>
-              <AddReminderDialog memberId={member.id} onReminderAdded={() => {}} />
-            </div>
-            
+          <TabsContent value="documents">
             <Card>
-              <CardHeader>
-                <CardTitle>Active Reminders</CardTitle>
-                <CardDescription>
-                  Medication and appointment reminders for {member.name}
-                </CardDescription>
+              <CardHeader className="flex justify-between items-center">
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5" /> Documents
+                </CardTitle>
+                <UploadDocumentDialog memberId={member.id} onDocumentUploaded={handleRefresh} />
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  No reminders set yet. Click "Add Reminder" to start setting up notifications.
-                </div>
+                <DocumentsList memberId={member.id} refresh={refreshTrigger} />
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Emergency Tab */}
-          <TabsContent value="emergency" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Emergency Health Card</h2>
-            </div>
-            
+          <TabsContent value="emergency">
             <EmergencyCardGenerator member={member} />
-          </TabsContent>
-
-          {/* Doctors Tab */}
-          <TabsContent value="doctors" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Doctor Directory</h2>
-              <AddDoctorDialog memberId={member.id} onDoctorAdded={() => {}} />
-            </div>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Healthcare Providers</CardTitle>
-                <CardDescription>
-                  Doctors and healthcare providers for {member.name}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  No doctors added yet. Click "Add Doctor" to start building your healthcare directory.
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
         </Tabs>
       </div>
     </div>
   );
 };
+
+// InfoCard component
+const InfoCard = ({ label, value }: { label: string; value: string }) => (
+  <div className="bg-card rounded-lg p-3 shadow-soft">
+    <p className="text-sm text-muted-foreground">{label}</p>
+    <p className="font-semibold">{value}</p>
+  </div>
+);
 
 export default MemberProfile;

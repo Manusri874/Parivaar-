@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Heart, Shield, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import heroImage from "@/assets/hero-family-health.jpg";
 import Navbar from "./Navbar";
 
@@ -9,13 +10,69 @@ const HeroSection = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    console.log('=== HeroSection mounted ===');
+    console.log('User state:', user);
+    console.log('Navigate function:', navigate);
+    
+    // Check if features element exists
+    const featuresElement = document.getElementById('features');
+    console.log('Features element on mount:', featuresElement);
+    
+    if (featuresElement) {
+      console.log('Features element position:', featuresElement.getBoundingClientRect());
+    }
+  }, [user, navigate]);
+
   const handleGetStarted = () => {
-    if (user) {
-      // User is logged in, navigate to dashboard
-      navigate('/dashboard');
-    } else {
-      // User is not logged in, navigate to auth page
-      navigate('/auth');
+    console.log('=== Get Started button clicked ===');
+    console.log('User state:', user);
+    console.log('Navigate function:', navigate);
+    
+    try {
+      if (user) {
+        // User is logged in, navigate to dashboard
+        console.log('User is logged in, navigating to dashboard');
+        navigate('/dashboard');
+      } else {
+        // User is not logged in, navigate to auth page
+        console.log('User is not logged in, navigating to auth page');
+        navigate('/auth');
+      }
+    } catch (error) {
+      console.error('Error navigating:', error);
+    }
+  };
+
+  const handleLearnMore = () => {
+    console.log('=== Learn More button clicked ===');
+    console.log('Window object:', window);
+    console.log('Document object:', document);
+    
+    try {
+      const featuresElement = document.getElementById('features');
+      console.log('Features element search result:', featuresElement);
+      
+      if (featuresElement) {
+        console.log('Features element found, scrolling to it');
+        console.log('Element position:', featuresElement.getBoundingClientRect());
+        featuresElement.scrollIntoView({ behavior: 'smooth' });
+        console.log('ScrollIntoView called successfully');
+      } else {
+        console.log('Features element not found, trying fallback scroll');
+        // Fallback: scroll to top of page
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        console.log('Fallback scroll called');
+      }
+    } catch (error) {
+      console.error('Error scrolling to features:', error);
+      // Fallback: scroll to top of page
+      try {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        console.log('Error fallback scroll called');
+      } catch (fallbackError) {
+        console.error('Even fallback scroll failed:', fallbackError);
+      }
     }
   };
 
@@ -56,10 +113,15 @@ const HeroSection = () => {
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <Button variant="hero" size="lg" className="group" onClick={handleGetStarted}>
-                {user ? 'Go to Dashboard' : 'Get Started'}
+                {user ? 'Go to Dashboard' : 'Start Free Trial'}
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
-              <Button variant="outline" size="lg" className="bg-white/10 border-white/30 text-white hover:bg-white/20">
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+                onClick={handleLearnMore}
+              >
                 Learn More
               </Button>
             </div>

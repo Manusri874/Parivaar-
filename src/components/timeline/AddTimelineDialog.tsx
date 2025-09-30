@@ -6,7 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { Plus } from 'lucide-react';
 
 interface AddTimelineDialogProps {
@@ -33,42 +32,25 @@ const AddTimelineDialog = ({ memberId, onTimelineAdded }: AddTimelineDialogProps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     setLoading(true);
+
     try {
-      const { error } = await supabase
-        .from('medical_timeline')
-        .insert({
-          family_member_id: memberId,
-          title: formData.title,
-          event_type: formData.event_type,
-          event_date: formData.event_date,
-          severity: formData.severity,
-          notes: formData.notes
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Success!",
-        description: "Timeline entry added successfully!",
+      const response = await fetch("http://127.0.0.1:8000/api/timeline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ member_id: memberId, ...formData })
       });
 
-      setFormData({
-        title: '',
-        event_type: '',
-        event_date: '',
-        severity: '',
-        notes: ''
-      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to add timeline entry");
+
+      toast({ title: "Success!", description: "Timeline entry added successfully!" });
+
+      setFormData({ title: '', event_type: '', event_date: '', severity: '', notes: '' });
       setOpen(false);
       onTimelineAdded();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -78,8 +60,7 @@ const AddTimelineDialog = ({ memberId, onTimelineAdded }: AddTimelineDialogProps
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button className="gap-2">
-          <Plus className="w-4 h-4" />
-          Add Timeline Entry
+          <Plus className="w-4 h-4" /> Add Timeline Entry
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
@@ -91,79 +72,38 @@ const AddTimelineDialog = ({ memberId, onTimelineAdded }: AddTimelineDialogProps
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="title">Title *</Label>
-            <Input
-              id="title"
-              value={formData.title}
-              onChange={(e) => handleInputChange('title', e.target.value)}
-              placeholder="e.g., Flu Treatment"
-              required
-            />
+            <Label>Title *</Label>
+            <Input value={formData.title} onChange={(e) => handleInputChange('title', e.target.value)} required />
           </div>
-          
           <div className="space-y-2">
-            <Label htmlFor="event_type">Event Type *</Label>
+            <Label>Event Type *</Label>
             <Select value={formData.event_type} onValueChange={(value) => handleInputChange('event_type', value)} required>
-              <SelectTrigger>
-                <SelectValue placeholder="Select event type" />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Select event type" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="Illness">Illness</SelectItem>
-                <SelectItem value="Medication">Medication</SelectItem>
-                <SelectItem value="Surgery">Surgery</SelectItem>
-                <SelectItem value="Recovery">Recovery</SelectItem>
-                <SelectItem value="Checkup">Checkup</SelectItem>
-                <SelectItem value="Vaccination">Vaccination</SelectItem>
-                <SelectItem value="Injury">Injury</SelectItem>
-                <SelectItem value="Test">Medical Test</SelectItem>
-                <SelectItem value="Other">Other</SelectItem>
+                {["Illness","Medication","Surgery","Recovery","Checkup","Vaccination","Injury","Test","Other"].map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
-          
           <div className="space-y-2">
-            <Label htmlFor="event_date">Event Date *</Label>
-            <Input
-              id="event_date"
-              type="date"
-              value={formData.event_date}
-              onChange={(e) => handleInputChange('event_date', e.target.value)}
-              required
-            />
+            <Label>Event Date *</Label>
+            <Input type="date" value={formData.event_date} onChange={(e) => handleInputChange('event_date', e.target.value)} required />
           </div>
-          
           <div className="space-y-2">
-            <Label htmlFor="severity">Severity</Label>
+            <Label>Severity</Label>
             <Select value={formData.severity} onValueChange={(value) => handleInputChange('severity', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select severity (optional)" />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Select severity (optional)" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="Low">Low</SelectItem>
-                <SelectItem value="Medium">Medium</SelectItem>
-                <SelectItem value="High">High</SelectItem>
-                <SelectItem value="Critical">Critical</SelectItem>
+                {["Low","Medium","High","Critical"].map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
-          
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) => handleInputChange('notes', e.target.value)}
-              placeholder="Additional details about this event..."
-            />
+            <Label>Notes</Label>
+            <Textarea value={formData.notes} onChange={(e) => handleInputChange('notes', e.target.value)} />
           </div>
-          
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Adding...' : 'Add Entry'}
-            </Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button type="submit" disabled={loading}>{loading ? 'Adding...' : 'Add Entry'}</Button>
           </div>
         </form>
       </DialogContent>

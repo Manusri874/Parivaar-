@@ -35,15 +35,26 @@ const Navbar = () => {
                 </Button>
               </div>
             ) : (
-              <Link to="/auth">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="bg-white/10 border-white/30 text-white hover:bg-white/20"
-                >
-                  Sign In
-                </Button>
-              </Link>
+              <div className="flex items-center gap-3">
+                <Link to="/auth?mode=signup">
+                  <Button 
+                    variant="hero" 
+                    size="sm"
+                    className="text-white"
+                  >
+                    Sign Up
+                  </Button>
+                </Link>
+                <Link to="/auth">
+                  <Button 
+                    variant="hero" 
+                    size="sm"
+                    className="text-white"
+                  >
+                    Sign In
+                  </Button>
+                </Link>
+              </div>
             )}
           </div>
         </div>

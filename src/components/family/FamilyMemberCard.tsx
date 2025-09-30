@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import FamilyMemberPhoto from './FamilyMemberPhoto';
 
 interface FamilyMember {
   id: string;
@@ -11,6 +12,7 @@ interface FamilyMember {
   gender?: string;
   phone?: string;
   email?: string;
+  photo_url?: string;
 }
 
 interface FamilyMemberCardProps {
@@ -28,9 +30,12 @@ const FamilyMemberCard = ({ member }: FamilyMemberCardProps) => {
     <Card>
       <CardContent className="p-6">
         <div className="flex items-center gap-4 mb-4">
-          <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center">
-            <Users className="w-6 h-6 text-primary" />
-          </div>
+          <FamilyMemberPhoto 
+            photoUrl={member.photo_url}
+            name={member.name}
+            relation={member.relation}
+            size="md"
+          />
           <div>
             <h3 className="font-semibold">{member.name}</h3>
             <p className="text-sm text-muted-foreground">{member.relation}</p>
